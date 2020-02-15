@@ -11,7 +11,10 @@ import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.net.MalformedURLException;
@@ -48,12 +51,31 @@ public class Main extends JavaPlugin implements Listener {
                 "**" + e.getPlayer().getName() + "**:\n" + e.getMessage());
     }
 
+    @EventHandler
+    public void onPlayerJoin(PlayerJoinEvent e) {
+        room.sendText(removeColor(e.getJoinMessage()));
+    }
+
+    @EventHandler
+    public void onPlayerLeave(PlayerQuitEvent e) {
+        room.sendText(removeColor(e.getQuitMessage()));
+    }
+
+    @EventHandler
+    public void onPlayerDeath(PlayerDeathEvent e) {
+        room.sendText(e.getDeathMessage());
+    }
+
+    private String removeColor(String raw) {
+        return raw.replaceAll("[§][0-fklmnor]", "");
+    }
+
     private void loadConfig() {
         FileConfiguration c = getConfig();
 
         c.addDefault("matrix.server", "https://matrix.lelux.net");
         c.addDefault("matrix.access_token", "YOUR_ACCESS_TOKEN");
-        c.addDefault("matrix.room_id", "!room:lelux.net");
+        c.addDefault("matrix.room_id", "!roomid:lelux.net");
 
         c.options().copyDefaults(true);
 
