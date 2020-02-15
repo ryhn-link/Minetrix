@@ -16,6 +16,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.stream.Collectors;
 
 public class Main extends JavaPlugin implements Listener {
 
@@ -81,9 +82,9 @@ public class Main extends JavaPlugin implements Listener {
                 while (!Thread.currentThread().isInterrupted()) {
                     _SyncData data = client.sync(SyncOptions.build().setSince(syncToken).get());
 
-                    for (_SyncData.JoinedRoom room : data.getRooms().getJoined()) {
-                        if (room.getId().equals(matrixRoomId)) {
-                            for (_MatrixEvent event : room.getTimeline().getEvents()) {
+                    for (_SyncData.JoinedRoom jRoom : data.getRooms().getJoined()) {
+                        if (jRoom.getId().equals(matrixRoomId)) {
+                            for (_MatrixEvent event : jRoom.getTimeline().getEvents()) {
                                 if ("m.room.message".contentEquals(event.getType())) {
                                     MatrixJsonRoomMessageEvent msg = new MatrixJsonRoomMessageEvent(event.getJson());
 
@@ -91,7 +92,17 @@ public class Main extends JavaPlugin implements Listener {
                                         String sender = client.getUser(msg.getSender()).getName().get();
                                         String message = msg.getBody();
 
-                                        Bukkit.broadcastMessage("[" + sender + "] " + message);
+                                        if (message.startsWith("!")) {
+                                            if (message.equalsIgnoreCase("!tab")) {
+                                                room.sendText(getServer().getOnlinePlayers().stream()
+                                                        .map(p -> p.getName())
+                                                        .collect(Collectors.joining("\n")));
+                                            } else {
+                                                room.sendText("There is no such command");
+                                            }
+                                        } else {
+                                            Bukkit.broadcastMessage("[" + sender + "] " + message);
+                                        }
                                     }
                                 }
                             }
