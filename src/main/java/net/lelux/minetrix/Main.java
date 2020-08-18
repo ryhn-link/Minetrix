@@ -67,7 +67,7 @@ public class Main extends JavaPlugin implements Listener {
     }
 
     private String removeColor(String raw) {
-        return raw.replaceAll("[§][0-fklmnor]", "");
+        return raw.replaceAll("§[0-fklmnor]", "");
     }
 
     private void loadConfig() {
@@ -105,29 +105,21 @@ public class Main extends JavaPlugin implements Listener {
                     _SyncData data = client.sync(SyncOptions.build().setSince(syncToken).get());
 
                     for (_SyncData.JoinedRoom jRoom : data.getRooms().getJoined()) {
-                        if (jRoom.getId().equals(matrixRoomId)) {
-                            for (_MatrixEvent event : jRoom.getTimeline().getEvents()) {
-                                if ("m.room.message".contentEquals(event.getType())) {
-                                    MatrixJsonRoomMessageEvent msg = new MatrixJsonRoomMessageEvent(event.getJson());
+                        if (!jRoom.getId().equals(matrixRoomId)) {
+                            continue;
+                        }
 
-                                    if (!client.getUser().get().getId().equals(msg.getSender().getId())) {
-                                        String sender = client.getUser(msg.getSender()).getName().get();
-                                        String message = msg.getBody();
-
-                                        if (message.startsWith("!")) {
-                                            if (message.equalsIgnoreCase("!tab")) {
-                                                room.sendText(getServer().getOnlinePlayers().stream()
-                                                        .map(p -> p.getName())
-                                                        .collect(Collectors.joining("\n")));
-                                            } else {
-                                                room.sendText("There is no such command");
-                                            }
-                                        } else {
-                                            Bukkit.broadcastMessage("[" + sender + "] " + message);
-                                        }
-                                    }
-                                }
+                        for (_MatrixEvent event : jRoom.getTimeline().getEvents()) {
+                            if (!"m.room.message".contentEquals(event.getType())) {
+                                continue;
                             }
+
+                            MatrixJsonRoomMessageEvent msg = new MatrixJsonRoomMessageEvent(event.getJson());
+                            if (client.getUser().get().getId().equals(msg.getSender().getId())) {
+                                continue;
+                            }
+
+                            onMessage(client.getUser(msg.getSender()).getName().get(), msg.getBody());
                         }
                     }
 
@@ -135,5 +127,19 @@ public class Main extends JavaPlugin implements Listener {
                 }
             }
         };
+    }
+
+    private void onMessage(String sender, String msg) {
+        if (msg.startsWith("!")) {
+            if (msg.equalsIgnoreCase("!tab")) {
+                room.sendText(getServer().getOnlinePlayers().stream()
+                        .map(p -> p.getName())
+                        .collect(Collectors.joining("\n")));
+            } else {
+                room.sendText("There is no such command");
+            }
+        } else {
+            Bukkit.broadcastMessage("[" + removeColor(sender) + "] " + removeColor(msg));
+        }
     }
 }
