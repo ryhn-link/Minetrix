@@ -1,6 +1,5 @@
 package net.lelux.minetrix;
 
-import io.kamax.matrix.client.MatrixHttpRoom;
 import io.kamax.matrix.client._MatrixClient;
 import io.kamax.matrix.client._SyncData;
 import io.kamax.matrix.client.regular.MatrixHttpClient;
@@ -11,6 +10,8 @@ import io.kamax.matrix.json.event.MatrixJsonRoomMessageEvent;
 
 import org.apache.commons.io.IOUtils;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.Color;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -23,24 +24,17 @@ import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerAdvancementDoneEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.yaml.snakeyaml.reader.StreamReader;
 
-import com.google.common.io.Files;
-import com.google.common.io.Resources;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.Map;
+import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 public class Main extends JavaPlugin implements Listener {
@@ -54,13 +48,21 @@ public class Main extends JavaPlugin implements Listener {
 
 	Thread matrixThread;
 
-	String serverStartFormat;
-	String serverCloseFormat;
-	String joinMsgFormat;
-	String leaveMsgFormat;
-	String deathMsgFormat;
-	String chatMsgFormat;
-	String advancementMsgFormat;
+	String serverStartFallbackFormat;
+	String serverCloseFallbackFormat;
+	String joinMsgFallbackFormat;
+	String leaveMsgFallbackFormat;
+	String deathMsgFallbackFormat;
+	String chatMsgFallbackFormat;
+	String advancementMsgFallbackFormat;
+
+	String serverStartHTMLFormat;
+	String serverCloseHTMLFormat;
+	String joinMsgHTMLFormat;
+	String leaveMsgHTMLFormat;
+	String deathMsgHTMLFormat;
+	String chatMsgHTMLFormat;
+	String advancementMsgHTMLFormat;
 
 	String serverStartMsgType;
 	String serverCloseMsgType;
@@ -69,6 +71,8 @@ public class Main extends JavaPlugin implements Listener {
 	String deathMsgType;
 	String chatMsgType;
 	String advancementMsgType;
+
+	String matrixMsgFormat;
 
 	JsonObject locale;	
 
@@ -81,8 +85,7 @@ public class Main extends JavaPlugin implements Listener {
 		getServer().getPluginManager().registerEvents(this, this);
 		matrixThread.start();
 
-		String html = serverStartFormat;
-		sendMessage(room, serverStartMsgType, html, html);
+		sendMessage(room, serverStartMsgType, serverStartHTMLFormat, serverStartFallbackFormat);
 
 			getCommand("reloadminetrix").setExecutor(new CommandExecutor() {
 				@Override
@@ -121,44 +124,63 @@ public class Main extends JavaPlugin implements Listener {
 
 	@Override
 	public void onDisable() {
-		String html = serverCloseFormat;
-		sendMessage(room, serverCloseMsgType, html, html);
+		sendMessage(room, serverCloseMsgType, serverCloseHTMLFormat, serverStartFallbackFormat);
 		matrixThread.interrupt();
 	}
 
 	@EventHandler(priority = EventPriority.HIGHEST)
 	public void onPlayerChat(AsyncPlayerChatEvent e) {
-		String html = chatMsgFormat
-				.replace("%player%", e.getPlayer().getDisplayName())
-				.replace("%message%", e.getMessage());
+		
+		String msg = htmlEscape(e.getMessage());
+		
+		String html = chatMsgHTMLFormat
+				.replace("%player%", toHtml(e.getPlayer().getDisplayName()))
+				.replace("%message%", toHtml(msg));
 
-		sendMessage(room, chatMsgType, html, html);
+		String fallback = chatMsgFallbackFormat
+				.replace("%player%", removeColor(e.getPlayer().getDisplayName()))
+				.replace("%message%", removeColor(msg));
+
+		//getLogger().info();
+
+		sendMessage(room, chatMsgType, html, fallback);
 	}
 
 	@EventHandler
 	public void onPlayerJoin(PlayerJoinEvent e) {
-		String html = joinMsgFormat
+		String html = joinMsgHTMLFormat
 				.replace("%player%", e.getPlayer().getDisplayName());
 
-		sendMessage(room, joinMsgType, html, html);
+		String fallback = joinMsgFallbackFormat
+				.replace("%player%", e.getPlayer().getDisplayName());
+
+		sendMessage(room, joinMsgType, html, fallback);
 	}
 
 	@EventHandler
 	public void onPlayerLeave(PlayerQuitEvent e) {
-		String html = leaveMsgFormat
+		String html = leaveMsgHTMLFormat
 				.replace("%player%", e.getPlayer().getDisplayName());
 
-		sendMessage(room, leaveMsgType, html, html);
+		String fallback = leaveMsgFallbackFormat
+				.replace("%player%", e.getPlayer().getDisplayName());
+
+		sendMessage(room, leaveMsgType, html, fallback);
 	}
 
 	@EventHandler
 	public void onPlayerDeath(PlayerDeathEvent e) {
-		String html = deathMsgFormat
+		String html = deathMsgHTMLFormat
 				.replace("%deathmsg%", e.getDeathMessage())
 				.replace("%player%", e.getEntity().getDisplayName())
 				.replace("%cause%", e.getEntity().getLastDamageCause().getEntity().getName());
 
-		sendMessage(room, deathMsgType, html, html);
+		String fallback = deathMsgFallbackFormat
+				.replace("%deathmsg%", e.getDeathMessage())
+				.replace("%player%", e.getEntity().getDisplayName())
+				.replace("%cause%", e.getEntity().getLastDamageCause().getEntity().getName());
+
+		sendMessage(room, deathMsgType, html, fallback);
 	}
 
 	@EventHandler
@@ -172,15 +194,127 @@ public class Main extends JavaPlugin implements Listener {
 		if(translated != null)
 			advancementName = translated;
 	
-		String html = advancementMsgFormat
+		String html = advancementMsgHTMLFormat
+			.replace("%player%", ev.getPlayer().getDisplayName())
+			.replace("%advancement%", advancementName);
+		
+		String fallback = advancementMsgFallbackFormat
 			.replace("%player%", ev.getPlayer().getDisplayName())
 			.replace("%advancement%", advancementName);
 
-		sendMessage(room, advancementMsgType, html, html);
+		sendMessage(room, advancementMsgType, html, fallback);
 	}
 
 	String removeColor(String raw) {
-		return raw.replaceAll("§[0-fklmnor]", "");
+		return ChatColor.stripColor(raw);
+	}
+
+	String mcEscape(String str)
+	{
+		// Zero-width character
+		Character zwnj = '‌';
+		return str.replace("§", "§" + zwnj);
+	}
+
+	String htmlEscape(String str)
+	{
+		return str.replace("<", "&lt;").replace(">", "&gt;");
+	}
+
+	Color[] colors = new Color[]
+	{
+		Color.fromRGB(000),
+		Color.fromRGB(000,000,170),
+		Color.fromRGB(000,170,000),
+		Color.fromRGB(000,170,170),
+		Color.fromRGB(170,000,000),
+		Color.fromRGB(170,000,170),
+		Color.fromRGB(255, 170, 0),
+		Color.fromRGB(170, 170, 170),
+		Color.fromRGB(85,85,85),
+		Color.fromRGB(85,85,255),
+		Color.fromRGB(85,255,85),
+		Color.fromRGB(85,255,255),
+		Color.fromRGB(255,85,85),
+		Color.fromRGB(255,85,255),
+		Color.fromRGB(255,255,85),
+		Color.fromRGB(255,255,255)
+	};
+
+	String toHtml(String str)
+	{
+		StringBuilder b = new StringBuilder();
+		ArrayList<String> tags = new ArrayList<String>();
+		int len = str.length();
+
+		for(int i=0; i<len; i++)
+		{
+			Character ch = str.charAt(i);
+			if(ch == '§' && i + 2 <= len)
+			{
+				Character code = str.charAt(i + 1);
+				if("0123456789".indexOf(code) > -1)
+				{
+					int coli = -('0' - code);
+					Color c = colors[coli];
+					b.append("<font color=\"#" + String.format("%06X", c.asRGB()) + "\">");
+					tags.add("font");
+				}
+				else if("abcdefg".indexOf(Character.toLowerCase(code)) > -1)
+				{
+					int coli = -('a' - Character.toLowerCase(code)) + 9;
+					Color c = colors[coli];
+					b.append("<font color=\"#" + String.format("%06X", c.asRGB()) + "\">");
+					tags.add("font");
+				}
+				else if("klmnor".indexOf(Character.toLowerCase(code)) > -1)
+				{
+					code = Character.toLowerCase(code);
+					switch(code)
+					{
+						case 'r':
+							for(String tag : tags)
+							{
+								b.append("</" + tag + ">");
+							}
+							tags.clear();
+						break;
+						case 'k':
+							b.append("<span data-mx-spoiler>");
+							tags.add("span");
+						break;
+						case 'l':
+							b.append("<b>");
+							tags.add("b");
+						break;
+						case 'm':
+							b.append("<strike>");
+							tags.add("strike");
+						break;
+						case 'n':
+							b.append("<u>");
+							tags.add("u");
+						break;
+						case 'o':
+							b.append("<i>");
+							tags.add("i");
+						break;
+					}
+				}
+				else
+				{
+					b.append(ch);
+					b.append(code);
+				}
+				
+				i++;
+				continue;
+			}
+
+			b.append(ch);
+		}
+		
+		return new String(b);
 	}
 
 	void createConfig()
@@ -191,13 +325,21 @@ public class Main extends JavaPlugin implements Listener {
 		c.addDefault("matrix.access_token", "YOUR_ACCESS_TOKEN");
 		c.addDefault("matrix.room_id", "!roomid:lelux.net");
 
-		c.addDefault("format.serverStart", "Server started");
-		c.addDefault("format.serverClose", "Server closed");
-		c.addDefault("format.join", "%player% joined the game");
-		c.addDefault("format.leave", "%player% left the game");
-		c.addDefault("format.death", "%deathmsg%");
-		c.addDefault("format.chat", "<%player%> %message%");
-		c.addDefault("format.advancement", "%player% has made the advancement <font color=\"#44ff44\">[%advancement%]</font>");
+		c.addDefault("format.html.serverStart", "Server started");
+		c.addDefault("format.html.serverClose", "Server closed");
+		c.addDefault("format.html.join", "%player% joined the game");
+		c.addDefault("format.html.leave", "%player% left the game");
+		c.addDefault("format.html.death", "%deathmsg%");
+		c.addDefault("format.html.chat", "&lt;%player%&gt; %message%");
+		c.addDefault("format.html.advancement", "%player% has made the advancement <font color=\"#44ff44\">[%advancement%]</font>");
+
+		c.addDefault("format.fallback.serverStart", "Server started");
+		c.addDefault("format.fallback.serverClose", "Server closed");
+		c.addDefault("format.fallback.join", "%player% joined the game");
+		c.addDefault("format.fallback.leave", "%player% left the game");
+		c.addDefault("format.fallback.death", "%deathmsg%");
+		c.addDefault("format.fallback.chat", "<%player%> %message%");
+		c.addDefault("format.fallback.advancement", "%player% has made the advancement [%advancement%]");
 
 		c.addDefault("msgtype.serverStart", "m.notice");
 		c.addDefault("msgtype.serverClose", "m.notice");
@@ -205,7 +347,9 @@ public class Main extends JavaPlugin implements Listener {
 		c.addDefault("msgtype.leave", "m.notice");
 		c.addDefault("msgtype.death", "m.notice");
 		c.addDefault("msgtype.chat", "m.text");
-		c.addDefault("msgtype.advancement", "nic.custom.confetti");
+		c.addDefault("msgtype.advancement", "m.notice"); // nic.custom.confetti disables HTML rendering
+
+		c.addDefault("format.matrix", "[%displayname%] %body%");
 
 		c.options().copyDefaults(true);
 
@@ -224,13 +368,21 @@ public class Main extends JavaPlugin implements Listener {
 		matrixAccessToken = c.getString("matrix.access_token");
 		matrixRoomId = c.getString("matrix.room_id");
 
-		serverStartFormat = c.getString("format.serverStart");
-		serverCloseFormat = c.getString("format.serverClose");
-		joinMsgFormat = c.getString("format.join");
-		leaveMsgFormat = c.getString("format.leave");
-		deathMsgFormat = c.getString("format.death");
-		chatMsgFormat = c.getString("format.chat");
-		advancementMsgFormat = c.getString("format.advancement");
+		serverStartHTMLFormat = c.getString("format.html.serverStart");
+		serverCloseHTMLFormat = c.getString("format.html.serverClose");
+		joinMsgHTMLFormat = c.getString("format.html.join");
+		leaveMsgHTMLFormat = c.getString("format.html.leave");
+		deathMsgHTMLFormat = c.getString("format.html.death");
+		chatMsgHTMLFormat = c.getString("format.html.chat");
+		advancementMsgHTMLFormat = c.getString("format.html.advancement");
+
+		serverStartFallbackFormat = c.getString("format.fallback.serverStart");
+		serverCloseFallbackFormat = c.getString("format.fallback.serverClose");
+		joinMsgFallbackFormat = c.getString("format.fallback.join");
+		leaveMsgFallbackFormat = c.getString("format.fallback.leave");
+		deathMsgFallbackFormat = c.getString("format.fallback.death");
+		chatMsgFallbackFormat = c.getString("format.fallback.chat");
+		advancementMsgFallbackFormat = c.getString("format.fallback.advancement");
 		
 		serverStartMsgType = c.getString("msgtype.serverStart");
 		serverCloseMsgType = c.getString("msgtype.serverClose");
@@ -239,6 +391,8 @@ public class Main extends JavaPlugin implements Listener {
 		deathMsgType = c.getString("msgtype.death");
 		chatMsgType = c.getString("msgtype.chat");
 		advancementMsgType = c.getString("msgtype.advancement");
+
+		matrixMsgFormat = c.getString("format.matrix");
 	}
 
 	void connectToMatrix() {
@@ -269,7 +423,7 @@ public class Main extends JavaPlugin implements Listener {
 								continue;
 							}
 
-							onMessage(client.getUser(msg.getSender()).getName().get(), msg.getBody());
+							onMessage(msg);
 						}
 					}
 
@@ -279,16 +433,22 @@ public class Main extends JavaPlugin implements Listener {
 		};
 	}
 
-	void onMessage(String sender, String msg) {
-		if (msg.startsWith("!")) {
-			if (msg.equalsIgnoreCase("!tab")) {
-				room.sendText(getServer().getOnlinePlayers().stream()
-						.map(p -> p.getName())
-						.collect(Collectors.joining("\n")));
-			}
-		} else {
-			Bukkit.broadcastMessage("[" + removeColor(sender) + "] " + removeColor(msg));
-		}
+	void onMessage(MatrixJsonRoomMessageEvent msg) {
+		if(msg.getBodyType() == "m.notice") return;
+
+		// Converting from HTML to MC formatting codes would be nice
+		// if(msg.getFormat() == "org.matrix.custom.html")
+		// 		msg.getFormattedBody()
+		String body = mcEscape(msg.getBody());
+		String displayname = client.getUser(msg.getSender()).getName().get();
+		String username = msg.getSender().toString();
+
+		String mcmsg = ChatColor.translateAlternateColorCodes('&', matrixMsgFormat)
+			.replace("%displayname%", displayname)
+			.replace("%username%", username)
+			.replace("%body%", body);
+
+		Bukkit.broadcastMessage(mcmsg);
 	}
 
 	String sendMessage(_MatrixRoom room, String msgtype, String html, String fallback) {
