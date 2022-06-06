@@ -294,6 +294,7 @@ public class Main extends JavaPlugin implements Listener {
 					switch(code)
 					{
 						case 'r':
+							Collections.reverse(tags);
 							for(String tag : tags)
 							{
 								b.append("</" + tag + ">");
