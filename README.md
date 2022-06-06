@@ -4,6 +4,10 @@ Minetrix is a two-way Minecraft-Matrix bridge utilizing a bot account instead of
 ![Matrix screenshot](screenshots/mx.png)
 ![Minecraft screenshot](screenshots/mc.png)  
 
+Minetrix 2 automatically converts Minecraft formatting codes to Matrix HTML.  
+It also supports [ChatItem](https://github.com/dadus33-plugins/ChatItem) (tested on 2.3-2.4). Innuendos not included.  
+![ChatItem support screenshot](screenshots/chatitem.png)
+
 ## Installing
 You will need a spigot compatible server, like Bukkit, Paper or Pufferfish.  
 Once your server is running, download the plugin from [Releases](https://github.com/ryhn-link/Minetrix/releases/) or build it yourself using `mvn package`, the output file will be `target/minetrix-(version number).jar`.  

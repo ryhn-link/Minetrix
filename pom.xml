@@ -46,6 +46,10 @@
 			<id>jitpack.io</id>
 			<url>https://jitpack.io</url>
 		</repository>
+		<repository>
+			<id>eliapp.fr</id>
+			<url>https://repo.eliapp.fr:8081/repository/internal/</url>
+		</repository>
 	</repositories>
 
 	<dependencies>
@@ -59,6 +63,12 @@
 			<groupId>com.github.kamax-matrix</groupId>
 			<artifactId>matrix-java-sdk</artifactId>
 			<version>b0b6343</version>
+		</dependency>
+		<dependency>
+			<groupId>me.dadus33</groupId>
+			<artifactId>ChatItem</artifactId>
+			<version>2.4-SNAPSHOT</version>
+			<scope>provided</scope>
 		</dependency>
 	</dependencies>
 </project>

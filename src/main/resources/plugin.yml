@@ -1,6 +1,7 @@
 name: Minetrix
 main: net.lelux.minetrix.Main
 version: ${project.version}
+softdepend: [ ChatItem ]
 commands:
   reloadminetrix:
     description: Reload Minetrix config

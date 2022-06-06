@@ -1,12 +1,11 @@
 package net.lelux.minetrix;
 
-import io.kamax.matrix.client._MatrixClient;
-import io.kamax.matrix.client._SyncData;
-import io.kamax.matrix.client.regular.MatrixHttpClient;
-import io.kamax.matrix.client.regular.SyncOptions;
-import io.kamax.matrix.event._MatrixEvent;
-import io.kamax.matrix.hs._MatrixRoom;
-import io.kamax.matrix.json.event.MatrixJsonRoomMessageEvent;
+import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
 
 import org.apache.commons.io.IOUtils;
 import org.bukkit.Bukkit;
@@ -24,18 +23,26 @@ import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerAdvancementDoneEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
-import java.io.InputStream;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.stream.Collectors;
+import io.kamax.matrix.client._MatrixClient;
+import io.kamax.matrix.client._SyncData;
+import io.kamax.matrix.client.regular.MatrixHttpClient;
+import io.kamax.matrix.client.regular.SyncOptions;
+import io.kamax.matrix.event._MatrixEvent;
+import io.kamax.matrix.hs._MatrixRoom;
+import io.kamax.matrix.json.event.MatrixJsonRoomMessageEvent;
+import me.dadus33.chatitem.ChatItem;
+import me.dadus33.chatitem.chatmanager.ChatManager;
+import me.dadus33.chatitem.chatmanager.v1.PacketEditingChatManager;
+import me.dadus33.chatitem.chatmanager.v2.ChatListenerChatManager;
+import me.dadus33.chatitem.utils.ItemUtils;
+import me.dadus33.chatitem.utils.Storage;
 
 public class Main extends JavaPlugin implements Listener {
 
@@ -132,7 +139,22 @@ public class Main extends JavaPlugin implements Listener {
 	public void onPlayerChat(AsyncPlayerChatEvent e) {
 		
 		String msg = htmlEscape(e.getMessage());
-		
+
+		if(getServer().getPluginManager().getPlugin("ChatItem") != null &&
+			ChatItem.getInstance() != null)
+		{
+			Storage c = ChatItem.getInstance().getStorage();
+			ItemStack item = ChatManager.getUsableItem(e.getPlayer());
+			String itemstr = ChatManager.styleItem(e.getPlayer(), item, c);
+
+			if(ItemUtils.isEmpty(item)) itemstr = (c.HAND_DISABLED ? c.PLACEHOLDERS.get(0) : c.HAND_NAME);
+
+			itemstr = itemstr.replace("{name}", e.getPlayer().getName()).replace("{display-name}", e.getPlayer().getDisplayName());
+
+			msg = msg.replace("[i]" + ChatManager.SEPARATOR + e.getPlayer().getName() , itemstr);
+			msg = msg.replace("[i]", itemstr);
+		}
+
 		String html = chatMsgHTMLFormat
 				.replace("%player%", toHtml(e.getPlayer().getDisplayName()))
 				.replace("%message%", toHtml(msg));
@@ -141,7 +163,6 @@ public class Main extends JavaPlugin implements Listener {
 				.replace("%player%", removeColor(e.getPlayer().getDisplayName()))
 				.replace("%message%", removeColor(msg));
 
-		//getLogger().info();
 
 		sendMessage(room, chatMsgType, html, fallback);
 	}
