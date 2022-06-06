@@ -14,6 +14,7 @@ Once your server is running, download the plugin from [Releases](https://github.
 
 ## Configuration
 Run the server with the plugin isntalled at least once, this will generate a default config file in `plugins/Minetrix/config.yml`.  
+Message formats can be reloaded by running `/reloadminetrix` by a OP.  
 
 ### Matrix
 Replace the `server` value in the `matrix` field with the address of your homeserver, e.g. `https://matrix.org`.  
