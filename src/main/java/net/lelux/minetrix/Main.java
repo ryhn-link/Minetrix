@@ -283,7 +283,7 @@ public class Main extends JavaPlugin implements Listener {
 				}
 				else if("abcdefg".indexOf(Character.toLowerCase(code)) > -1)
 				{
-					int coli = -('a' - Character.toLowerCase(code)) + 9;
+					int coli = -('a' - Character.toLowerCase(code)) + 10;
 					Color c = colors[coli];
 					b.append("<font color=\"#" + String.format("%06X", c.asRGB()) + "\">");
 					tags.add("font");
